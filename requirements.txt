@@ -1,0 +1,13 @@
+streamlit==1.28.0
+requests>=2.31.0
+boto3>=1.34.0
+pandas>=2.0.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+
+# Optional for embedding-based RAG (keyword retrieval works without it)
+sentence-transformers>=2.2.2
+
+# Optional: for better performance with GPU
+# torch>=2.0.0
+# torchvision>=0.15.0

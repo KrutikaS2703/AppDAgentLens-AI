@@ -1,0 +1,109 @@
+# category: agent-config
+# tags: agent log, log files, logging level, debug, log4j, ByteCodeTransformer, agent.log, log structure, log rotation
+
+AppDynamics Java Agent – Log Files Reference
+
+LOG FILE LOCATIONS
+Default location: <agent-home>/logs/
+For agents installed in app server: typically /opt/appdynamics/appagent/logs/
+
+KEY LOG FILES
+  agent.log
+    - Primary agent log — most important for troubleshooting
+    - Contains: registration, BT detection, controller communication, errors
+    - Rolls over daily and when size exceeds limit (default 50 MB)
+
+  ByteCodeTransformer_<YYYY_MM_DD_HH_MM>.log
+    - BCT (Bytecode Transformation) log
+    - Contains: every class loaded, whether interceptors were applied
+    - Critical for: "why is my BT not being detected?" investigations
+    - Can be very large on first startup (logs all class loading)
+
+  AgentService.log
+    - Agent service lifecycle log
+    - Contains: agent start, stop, reconnect events
+
+  MultiThreadedHttpConnectionManager_<date>.log
+    - HTTP connection management for controller communication
+    - Useful when agent can't reach controller
+
+  MetricHandler_<date>.log
+    - Metric reporting log
+    - Useful when metrics are not appearing in Controller UI
+
+  ProcessorLog_<date>.log
+    - Internal agent processing log
+
+LOG ROTATION AND RETENTION
+  - Logs roll over when they hit max size (default 50 MB per file)
+  - Each logger keeps N backup files (default 5 sets)
+  - Naming: agent.log → agent.log.1 → agent.log.2 ... agent.log.5 (then wraps)
+  - BCT logs: named with timestamp, older ones can be deleted safely
+  - To control retention: edit <agent-home>/conf/logging/log4j2.xml
+
+CHANGING LOG LEVEL
+Method 1 – Controller UI (no restart, takes effect in ~1 min):
+  App > Tiers > [tier] > Nodes > [node] > Agent Config > Log Level
+  Options: ERROR, WARN, INFO, DEBUG, TRACE
+
+Method 2 – Node Property:
+  Add property: log-level = DEBUG
+
+Method 3 – log4j2.xml:
+  Edit <agent-home>/conf/logging/log4j2.xml
+  Change: <Root level="info"> to <Root level="debug">
+  Restart required.
+
+RECOMMENDED LOG LEVELS
+  Normal operation: INFO
+  Troubleshooting BT detection: DEBUG (temporarily)
+  Troubleshooting BCT/instrumentation: DEBUG on ByteCodeTransformer logger
+  Performance issue: INFO (DEBUG adds overhead)
+  Production: never leave at DEBUG long-term (log volume + CPU overhead)
+
+INCREASING BCT LOG DETAIL
+In log4j2.xml:
+  <Logger name="com.singularity.BCTLog" level="debug" additivity="false">
+    <AppenderRef ref="BCTFileAppender"/>
+  </Logger>
+
+COMMON LOG MESSAGES AND MEANINGS
+
+agent.log entries:
+  "Registering agent with Controller..."            → agent starting registration
+  "Agent registered as node [NodeName]"             → successful registration
+  "Could not connect to Controller"                 → connectivity issue (check host/port/SSL)
+  "Reconnecting to Controller in X seconds"         → retrying after disconnect
+  "Limit of X business transactions reached"        → BT limit hit, new BTs will be dropped
+  "Dropping Business Transaction: /api/orders"      → BT being dropped (limit or exclusion)
+  "Transaction Snapshot captured for BT: X"         → snapshot recorded
+  "JMX access denied"                               → JMX permission issue
+  "OutOfMemoryError"                                → JVM heap exhausted (check JVM memory settings)
+  "Agent health monitor: Agent is HEALTHY"          → normal
+
+ByteCodeTransformer log entries:
+  "Applying interceptors to: com.myapp.OrderService"   → class being instrumented
+  "No interceptors matched for: org.spring.Utils"      → class not matched (candidate to exclude)
+  "Class excluded by pattern: org.apache.*"            → exclusion working correctly
+  "Failed to apply interceptor: VerifyError"           → instrumentation error (report to support)
+  "Loading interceptor rules from: ..."                → startup — loading config
+
+ANALYZING AGENT LOG FOR PROBLEMS
+Quick grep commands:
+  # Registration issues:
+  grep -i "connect\|register\|ssl\|authentication" agent.log
+
+  # BT issues:
+  grep -i "dropping\|limit\|excluded\|transaction" agent.log
+
+  # Errors:
+  grep -i "error\|exception\|failed\|warn" agent.log | head -100
+
+  # BCT stats:
+  grep -i "applied\|interceptor\|matched" ByteCodeTransformer*.log | tail -50
+
+LOG FILE DISK SPACE
+BCT logs can grow very large on startup (hundreds of MB for large applications).
+Safe to delete old BCT logs while agent is running.
+To reduce BCT log verbosity in production:
+  Set BCT log level to WARN or ERROR in log4j2.xml

@@ -1,0 +1,106 @@
+# category: error-resolution
+# tags: jmx, mbean, permission, security, authorization, sap, oracle
+
+Agent - JMX MBean Permission Denied Error
+
+Error Pattern:
+"CALLER GUEST NOT AUTHORIZED" when registering MBeans
+"Exception COM.SAP.ENGINE.SERVICES.JMX.EXCEPTION.JMXSECURITYEXCEPTION"
+"Permission javax.management.MBeanPermission"
+
+Context:
+- Usually appears in SAP, Oracle, or JVMs with strict security managers enabled
+- Occurs during agent startup when trying to register monitoring MBeans
+- Agent may still collect metrics but with reduced functionality
+
+Root Causes:
+1. JVM running with Java security manager enabled
+2. JMX authentication not configured or incorrect
+3. User/role running agent lacks JMX permission
+4. Java security policy file blocks MBean registration
+5. JVM restricts access to certain class packages (SAP/Oracle specific)
+
+Impact:
+- Agent continues operating but with limitations
+- Advanced metrics unavailable
+- Some instrumentation may be skipped
+- Monitoring capability reduced but not completely lost
+
+Diagnosis:
+1. Check if security manager is active: java -version output or startup logs
+2. Search agent logs for "JMXSECURITYEXCEPTION" or "MBeanPermission"
+3. Verify JVM user: whoami command (must have permission to register beans)
+4. Review Java security policy file location and contents
+
+Solutions (In Order of Preference):
+
+Option 1 - SAP/Oracle Specific Configuration:
+Contact SAP/Oracle support for proper AppDynamics JMX configuration
+Usually involves specific Java patches or config updates
+
+Option 2 - Configure JMX Credentials:
+1. Create JMX password file: jmxremote.password
+2. Pass to JVM: -Dcom.sun.management.jmxremote.password.file=<path>
+3. Set restrictive file permissions: chmod 600 jmxremote.password
+4. Ensure user running JVM has read access
+
+Option 3 - Adjust Java Security Policy (If Allowed):
+1. Locate catalina.security.manager or custom security policy
+2. Add permission for AppDynamics:
+   permission javax.management.MBeanPermission 
+   "com.singularity.ee.agent.appagent.services.*" "*";
+3. Restart JVM to apply changes
+
+Option 4 - Disable JMX Security (Last Resort):
+Only if approved by security team:
+-Dcom.sun.management.jmxremote.authenticate=false
+
+Note: Reduces security, use only in trusted environments
+
+Verification After Fix:
+1. Restart application with JVM changes
+2. Check agent logs for successful MBean registration
+3. Verify advanced metrics appear in controller
+4. Confirm no additional permission-related errors
+
+Workaround While Fixing:
+- Agent monitoring continues with reduced functionality
+- Restart not required for fix attempts
+- Some advanced metrics simply won't be available
+- Core performance monitoring still active
+
+Support Clarification Questions:
+1. Is this SAP/Oracle/WebLogic/WebSphere/standard JVM?
+2. Is SecurityManager enabled or any custom java.policy in use?
+3. Did JDK version or security policy change recently?
+4. Are failures on all nodes or subset of hosts?
+5. Is JMX remote enabled and secured via jmxremote.access/password files?
+
+Support Triage Checklist:
+[ ] Confirm JVM user identity and permissions
+[ ] Confirm security manager/policy settings in startup args
+[ ] Confirm jmxremote.access and jmxremote.password files exist and permissions are valid
+[ ] Confirm AppDynamics process can read required files
+[ ] Confirm issue scope: only advanced JMX metrics vs full agent failure
+
+Log Analysis Playbook:
+Files:
+- agent.log
+- startup logs with full JVM args
+- java policy/security config files (if permitted)
+
+Patterns:
+- JMXSECURITYEXCEPTION|MBeanPermission|AccessControlException
+- CALLER GUEST NOT AUTHORIZED
+- permission javax.management.MBeanPermission
+
+Interpretation:
+- AccessControlException/MBeanPermission -> security policy restriction
+- guest not authorized -> JMX auth/role mapping issue
+- partial monitoring still works -> agent core is healthy, only JMX path restricted
+
+Remediation order:
+1. Apply vendor-recommended SAP/Oracle JMX config
+2. Fix credentials/role mapping for JMX access
+3. Add minimal required policy permissions
+4. Avoid globally disabling JMX auth unless explicitly approved

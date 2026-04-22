@@ -1,0 +1,139 @@
+# category: java-supported-environments
+# tags: java agent, supported frameworks, supported versions, application servers, middleware, rpc, web services, appdynamics
+
+Splunk AppDynamics Java Agent supported environments reference.
+Source basis: official Splunk/AppDynamics Java Supported Environments documentation.
+Use this as a practical KB summary for Java Agent support checks around the 26.2/26.3 documentation family.
+
+JVM support
+
+- Sun HotSpot based JVMs: Oracle OpenJDK, Amazon Corretto, AdoptOpenJDK / Eclipse Temurin, BellSoft Liberica, Azul Zing/Zulu, RedHat OpenJDK, SapMachine, GraalVM.
+  Supported Java versions: 8 to 25.
+  Notes: OIT, CI, and AT require full JDK. CI and AT are not supported on Azul Zing. Graal Native Images are not supported.
+
+- IBM J9 based JVMs: OpenJ9, IBM J9, AdoptOpenJDK (up to Java 16), Semeru.
+  Supported Java versions: 8 to 21.
+  Notes: OIT and AT are not supported. CI requires full JDK. Hybrid mode is not supported.
+
+Common supported language and web frameworks
+
+- Akka Actor: 2.1 to 2.5.x
+- Akka HTTP: Akka Actor 2.6, Akka HTTP up to 10.2.6, Scala 2.11 and 2.12
+- Http4s Blaze Client: Blaze 0.20.5, 0.20.23, 0.21.0, 0.21.1
+- Ktor: 1.0.x to 1.6.x
+- Play Framework: 2.1 to 2.8, Scala 2.11 and 2.12
+- Spray toolkit: 1.1.x, 1.1.3
+- Struts: 1.x, 2.x
+- Tapestry: 5
+- Wicket: supported
+- Vert.x Core: 3.3.3 to 3.5.4, 3.6.x, 3.7.x, 3.8.x, 3.9.x, 4.0.x, 4.1.x, 4.2.x, 4.3.x, 4.4.x, 4.5.x
+- Micronaut: 4.0.x to 4.6.x
+- Netty: 3.x, 4.x
+- Spring Boot: 2.x, 3.x
+- Spring MVC: 5.3
+- Spring WebFlux: 5.0, 5.1, 5.2, 5.3
+- Spring Cloud Gateway: 2.0.x, 2.1.x, 2.2.x, 3.0.x, 3.1.x
+- Spring Actuator: 3.x
+- Spring Annotated Web Services: 2.x+
+- Spring Batch: supported
+- Spring Integration: 2.2.0+, 4.0+, 5.2, 5.3
+- Jersey: 1.x, 2.x
+- Java Server Faces (JSF): 1.x, 2.x
+- Java Server Pages (JSP): 2.x
+- Java Servlet API: 2.x, 3.0
+- WebSocket: 1.0 (Java EE 7, JSR-356)
+- Grails: supported
+- Quarkus RESTEasy Classic: 3.15+
+- Quarkus Rest Client: 3.15
+- TheoKanning openai-java: 0.12.0, 0.13.0, 0.14.0
+
+Application servers
+
+- Apache Tomcat: 5.x, 6.x, 7.x, 8.x, 9, 10
+- Jetty: 6.x, 7.x, 8.x, 9.x, 12
+- JBoss EAP: 7.1.5, 7.2.0, 7.3.0, 7.4.0, 8.0
+- JBoss WildFly: 4.x to 32.x
+- WebLogic Server: 9.x+
+- WebSphere: 6.1, 7.x, 8.x, 9.x
+- GlassFish: 2.x, 3.x, 4.x
+- Resin: 1.x to 4.x
+- Karaf: 4.4.x
+- Sling: supported
+- Equinox / Felix OSGi: supported
+- Software AG webMethods: 9.5, 9.6, 10.x
+- Tibco ActiveMatrix BusinessWorks Service Engine: 5.x, 6.x
+
+Messaging and middleware
+
+- ActiveMQ: 5.x+ (JMS), 5.x+ STOMP, 5.8.x+ AMQP 1.0
+- Kafka: 0.9.0.0 to 3.0.0
+- Kafka Streams: <=3.5.1
+- Spring Kafka: 3.1.3
+- RabbitMQ: supported
+- RabbitMQ Spring Client: supported
+- IBM MQ: 6+
+- WebLogic JMS: 9.x+
+- Java Message Service: 2.0
+- Jakarta Messaging: 3.1
+- Mule ESB: 3.4, 3.6, 3.7, 3.8, 3.9, 4.1.x, 4.2.0, 4.2.1, 4.2.x, 4.3.0, 4.4.0, 4.5.x, 4.6.0 to 4.6.9, 4.7.0 to 4.7.4, 4.10.x
+- Vert.x event bus: 3.3.x, 3.4.x, 3.5.0, 3.6.0
+- Amazon SQS: supported
+- Amazon SNS: supported
+
+RPC, web service, and HTTP client support
+
+- Apache CXF: 2.1
+- Apache HTTP Client: 5
+- Apache Async HTTP Client: 4.1.x, 5.x
+- Apache Thrift: supported
+- gRPC: 1.6.x to 1.42.x
+- java.net.Http: supported
+- OkHttp: 2.x, 3.x, 4.x up to 4.9.3
+- JAX-WS RI: 2.3.1
+- Spring WS: 3.x, 4.x, 5.x
+- JAX-RS client API: 2.35
+- JAX-RS API: 3.0+
+
+NoSQL, data grids, and caches
+
+- DynamoDB: supported
+- S3: supported
+- Cassandra DataStax drivers: 4.10 or later; Thrift drivers 1.x and 2.x
+- Couchbase: 3.x
+- Infinispan: 5.3.0+
+- Memcached: supported
+- MongoDB Async Driver: 3.4 to 3.12
+- MongoDB Sync Driver: 3.1 to 3.12, 4.0.x
+- MongoDB Reactive Streams Driver: 1.3 to 1.13, 4.0.x, 4.2.x, 4.3.x
+- Coherence: 3.7.1
+- EhCache: supported
+
+JDBC and database support highlights
+
+- Oracle Database: 9i, 10g, 11g, 12c, 18c, 19c using Oracle JDBC
+- MySQL: 5.x, 6.x, 8.x
+- PostgreSQL: JDBC 42.2.5
+- DB2: 9.x, 10.1, 11.x
+- MariaDB: driver 1.4.x to 3.4
+- SQL Server: 2012
+- Informix, Sybase, Teradata, Cassandra, Derby also listed in support matrix
+
+Business transaction error detection logging frameworks
+
+- Log4j
+- Log4j 2
+- java.util.logging
+- SLF4J
+- Logback
+
+Important notes
+
+- If a framework is not listed in the official support matrix, AppDynamics can still instrument the JVM, but automatic entry/exit discovery may require custom POJO entry points, custom exit points, or custom match rules.
+- Some supported environments require node properties or extra configuration. Examples include Netty, Jersey/JAX-RS, WebSocket, Spring WebFlux, Quarkus RESTEasy Classic, and SOAP header correlation for some web service stacks.
+- Servlet 3.x detection is explicitly noted as not supported in the application server section.
+
+Practical usage for this KB
+
+- Use this document when answering: "Is framework X supported by the Java Agent?"
+- Use this document when answering: "What versions of Spring Boot, Netty, Micronaut, Kafka, Play, Quarkus, or WebLogic are supported?"
+- Use this document when suggesting whether a scanned package prefix looks like a framework that AppDynamics can auto-instrument.

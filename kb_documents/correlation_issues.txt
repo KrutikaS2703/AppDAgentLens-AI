@@ -1,0 +1,123 @@
+# category: bt-guide
+# tags: correlation, tracing, distributed, service-dependencies, cross-tier
+
+Agent - Correlation Issues in Distributed Systems
+
+Symptom:
+- Service calls not correlated between tiers
+- Missing service dependencies in topology
+- Transaction traces incomplete across services
+- Cannot see end-to-end flow from frontend to backend
+
+Root Causes:
+1. AppDynamics correlation headers not propagated between services
+2. Service communication method not supported (custom protocols)
+3. Correlation configuration disabled or not configured
+4. Intermediate services (proxies, load balancers) stripping headers
+5. Asynchronous communication not configured for correlation
+6. Service-to-service calls using non-HTTP protocols
+
+Impact:
+- Cannot trace requests across service boundaries
+- Missing service dependencies
+- Incomplete transaction analysis
+- Difficult to identify bottlenecks in distributed system
+- Performance issues hard to correlate to root cause
+
+Correlation Methods:
+
+1. HTTP Header Propagation (Most Common):
+   - AppDynamics injects headers into HTTP requests
+   - Downstream services must pass headers in responses
+   - Automatic if both services instrumented with AppDynamics
+
+2. Message Queue Correlation:
+   - JMS, Kafka, RabbitMQ messages carry correlation info
+   - Requires proper instrumentation configuration
+   - Check if queue instrumentation enabled in controller
+
+3. Database Correlation:
+   - Not directly supported; correlation at application level
+   - Use explicit application-level identifiers
+
+Solutions:
+
+1. Verify Correlation Headers:
+   - Use browser dev tools to check HTTP response headers
+   - Look for: X-APPDYNAMICS-TRANSACTION-ID, X-APPDYNAMICS-CORRELATION-HEADER
+   - If missing: correlation not enabled or not transmitted
+   - Check intermediaries aren't stripping headers
+
+2. Check Controller Configuration:
+   - Verify service instrumentation enabled for all tiers
+   - Review service detection rules (may not detect some services)
+   - Confirm correlation settings enabled
+   - Check service naming is configured correctly
+
+3. For Custom Protocols:
+   - May need custom instrumentation
+   - Contact AppDynamics support for custom correlation implementation
+   - Or implement manual transaction linking
+
+4. For Asynchronous Communications:
+   - Async tasks must preserve transaction context
+   - Configure async instrumentation in AppDynamics
+   - Executor service and thread pool settings must be correct
+
+5. For Message Queues:
+   - Enable message queue instrumentation
+   - Verify correlation enabled for your queue type
+   - Check producer and consumer both instrumented
+
+6. For Proxies/Load Balancers:
+   - Ensure headers are not stripped by proxy config
+   - Verify proxy not modifying AppDynamics headers
+   - May need proxy-specific configuration
+
+Verification Steps:
+1. Check controller service topology - should show service connections
+2. Look at transaction trace details - should include called services
+3. Verify service dependency map completeness
+4. Test with known transaction and trace it across services
+
+Debugging:
+1. Agent logs: Look for correlation-related messages
+2. Controller UI: Administration > Service Monitoring
+3. Transaction trace view: Should show "Called services" section
+4. Network trace: Use browser to verify headers are present
+
+Support Clarification Questions:
+1. Which exact tier-to-tier hop is not correlating?
+2. Is communication HTTP, gRPC, JMS/Kafka, or custom protocol?
+3. Are all involved tiers AppDynamics-instrumented?
+4. Are there proxies/gateways/service mesh components in the path?
+5. Is the issue only for async flows (Executor/CompletableFuture/message queues)?
+
+Support Triage Checklist:
+[ ] Confirm source and destination tiers are reporting normally
+[ ] Confirm exit calls exist on caller tier and entry BT exists on callee tier
+[ ] Confirm correlation headers/properties preserved across intermediaries
+[ ] Confirm async correlation settings and instrumentation
+[ ] Confirm no gateway/proxy header stripping policies
+
+Log Analysis Playbook:
+Files:
+- agent.log from caller and callee tiers for same time window
+- gateway/proxy access logs (if available)
+- sample transaction snapshot IDs from both tiers
+
+Patterns:
+- correlation|singularity|header|async
+- exit call|backend call|backend discovery
+- dropped header|filtered header (proxy logs)
+
+Protocol-specific checks:
+- HTTP: verify X-singularityheader preserved end-to-end
+- JMS/Kafka: verify correlation properties are carried with message
+- Async: verify context handoff preserved across thread boundaries
+
+Remediation order:
+1. Restore header/property propagation through intermediaries
+2. Enable/fix async correlation for executor/message flows
+3. Add instrumentation/custom exit point for unsupported client/protocol
+4. Re-validate with one known transaction end-to-end

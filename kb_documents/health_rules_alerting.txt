@@ -1,0 +1,116 @@
+# category: alerting
+# tags: health rule, policy, alert, action, baseline, threshold, violation, email, webhook, pagerduty, anomaly
+
+AppDynamics – Health Rules, Policies, and Alerting
+
+HEALTH RULES OVERVIEW
+Health Rules define the conditions under which AppDynamics marks a component as Warning or Critical.
+They continuously evaluate metrics against thresholds and update the health status in real time.
+
+HEALTH RULE COMPONENTS
+  - Scope: Which entities to evaluate (All BTs, specific tier, node, specific BT)
+  - Condition: The metric and threshold to evaluate
+  - Duration: How long the condition must be true before triggering (e.g., 5 minutes)
+  - Threshold type: Static value or Dynamic Baseline
+
+CONDITION TYPES
+  1. Business Transaction Performance:
+     - Average Response Time (ms)
+     - Error Rate (%)
+     - Calls Per Minute
+     - Errors Per Minute
+  2. Infrastructure:
+     - CPU Usage (%)
+     - Memory Usage (%)
+     - Network I/O
+     - Disk I/O
+  3. JVM:
+     - Heap Used (MB or %)
+     - GC Collection Time
+     - Thread Count
+  4. Custom Metric:
+     - Any metric path in the Metric Browser
+
+STATIC vs DYNAMIC BASELINE THRESHOLDS
+  Static: Fixed value threshold (e.g., response time > 500ms = Warning)
+  Dynamic Baseline:
+    - AppDynamics learns normal behavior over time (default: 2 weeks learning period)
+    - Threshold is: N standard deviations above baseline, or percentage above baseline
+    - More accurate for applications with variable traffic patterns
+    - Requires minimum data collection period before alerting begins
+
+CREATING A HEALTH RULE
+  Controller UI > Alert & Respond > Health Rules > Create Health Rule
+  Steps:
+  1. Name the rule
+  2. Select scope (All BTs, specific tier, etc.)
+  3. Add conditions (metric + threshold + duration)
+  4. Set affected entities
+  5. Save
+
+POLICIES
+Policies define what action to take when a health rule violates.
+  Controller UI > Alert & Respond > Policies > Create Policy
+  Components:
+    - Trigger: health rule violation (Warning/Critical) or Event type
+    - Action: what to do when triggered
+
+ACTION TYPES
+  1. Email: Send email to specified addresses
+  2. SMS: Send text message
+  3. HTTP Request: Call a webhook URL (POST/GET with payload)
+     - Use for PagerDuty, OpsGenie, Slack, ServiceNow integration
+  4. Create AppDynamics Event: Create a custom event in the event stream
+  5. Run Diagnostic Session: Auto-capture snapshots for the next N minutes
+  6. Run Runbook: Execute a custom script via the Controller
+
+WEBHOOK (HTTP REQUEST) ACTION PAYLOAD
+  Default JSON payload includes:
+    accountName, applicationName, eventType, severity, summary, incidentID
+  Customize payload in action configuration.
+  Used for: Slack, Teams, PagerDuty, Jira, ServiceNow integrations
+
+COMMON HEALTH RULES TO SET UP
+1. High Response Time:
+   Metric: BT > Average Response Time > 500ms for 5 min = Warning
+                                      > 2000ms for 5 min = Critical
+
+2. High Error Rate:
+   Metric: BT > Error Rate > 5% for 5 min = Warning
+                           > 20% for 5 min = Critical
+
+3. JVM Heap Pressure:
+   Metric: JVM > Heap Used % > 80% for 10 min = Warning
+                              > 95% for 5 min = Critical
+
+4. Thread Pool Exhaustion:
+   Metric: JMX > Tomcat ThreadPool > currentThreadsBusy/maxThreads > 90% = Warning
+
+5. GC Overhead:
+   Metric: JVM > GC Collection Time > 10% of interval = Warning
+
+6. Agent Disconnected:
+   Event type: Agent Disconnected → Email + PagerDuty
+
+SUPPRESSING HEALTH RULE VIOLATIONS
+Use Maintenance Windows to suppress alerts during planned maintenance:
+  Controller UI > Alert & Respond > Maintenance Windows > Create
+
+Or create an override policy to downgrade Critical to Warning during known incidents.
+
+BASELINE TUNING
+If dynamic baseline gives false positives:
+  - Increase learning period (Settings > Application Default > Baseline)
+  - Exclude weekends from baseline learning
+  - Use time-of-day-aware baselines
+  - Widen standard deviation multiplier (e.g., 3 SD instead of 2 SD)
+
+EVENT TYPES THAT TRIGGER POLICIES
+  POLICY_CONTINUES_CRITICAL, POLICY_CONTINUES_WARNING
+  POLICY_DOWNGRADED_TO_WARNING, POLICY_UPGRADED_TO_CRITICAL
+  POLICY_CANCELED_CRITICAL, POLICY_CANCELED_WARNING
+  AGENT_ADD_TO_COMPONENT, AGENT_REMOVE_FROM_COMPONENT
+  APPLICATION_CONFIG_CHANGE
+  DIAGNOSTIC_SESSION_STARTED
+  DEADLOCK_DETECTED
+  BT_SLA_VIOLATION

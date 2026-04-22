@@ -1,0 +1,107 @@
+# category: bct-guide
+# tags: bytecode, instrumentation, interceptors, BCT, applied classes, no interceptors, overhead, exclude, package, class, method, bci
+
+AppDynamics Bytecode Transformation (BCT) – Instrumentation Guide
+
+WHAT IS BCT (BYTECODE TRANSFORMATION)?
+AppDynamics instruments Java applications by modifying class bytecode at load time.
+The Java Agent uses a Java agent attach mechanism (-javaagent) to intercept class loading.
+The BCT (Bytecode Transformation / BCI – Bytecode Instrumentation) engine:
+  1. Examines each loaded class
+  2. Matches class/method against instrumentation rules (interceptors)
+  3. Injects monitoring code into matched methods
+  4. "Applied" means injection succeeded; "Matched" means candidate but may or may not be applied
+
+KEY TERMS
+- Matched class: Class examined by BCT engine against instrumentation rules
+- Applied class: Class that had interceptors actually injected (actively monitored)
+- No interceptor class: Class was matched/examined but had no matching interceptor rules
+- Interceptor: The monitoring code injected into a method (entry, exit, exception hooks)
+- BCT log: ByteCodeTransformer_<date>.log — detailed record of every class examined
+
+APPLIED CLASS COUNT AND PERFORMANCE IMPACT
+< 500 applied classes:    Low overhead (~2-5% CPU, ~100-200 MB heap)
+500-2000 applied classes: Medium overhead (~5-15% CPU, ~200-500 MB heap)
+> 2000 applied classes:   High overhead (>15% CPU, >500 MB heap); consider exclusions
+> 5000 applied classes:   Critical — likely instrumenting framework internals; exclude aggressively
+
+HOW TO CHECK APPLIED CLASS COUNT
+In agent.log:
+  grep "classes applied" agent.log
+  grep "Applied interceptors" agent.log
+In Controller UI: App > Tiers > [tier] > Agent Config > Instrumentation Summary
+
+BCT LOG FILE
+Location: <agent-home>/logs/ByteCodeTransformer_<date>.log
+Log levels:
+  INFO  — classes examined, interceptors applied
+  DEBUG — detailed per-method analysis
+  WARN  — classes that could not be instrumented
+  ERROR — instrumentation failures
+
+BCT LOG ENTRY EXAMPLES
+Class applied:
+  [INFO] Applying interceptors to: com.myapp.service.OrderService
+  [INFO]   Interceptor applied: com.singularity.ee.agent.lib.api.business.ServiceEndPointInterceptor
+    → method: processOrder(Order)
+
+Class with no interceptors (candidate to exclude):
+  [INFO] Loaded class: org.springframework.core.annotation.AnnotationUtils
+  [INFO]   No interceptors matched for this class
+
+Exclusion working:
+  [INFO] Class org.apache.commons.lang3.StringUtils excluded by BCI exclude pattern
+
+PACKAGES SAFE TO EXCLUDE (LOW RISK)
+Framework and library packages that are safe to exclude from instrumentation:
+  org.springframework.*          (Spring framework internals)
+  org.hibernate.*                (Hibernate ORM internals)
+  org.apache.commons.*           (Apache Commons utilities)
+  org.apache.log4j.*             (Logging framework)
+  ch.qos.logback.*               (Logging framework)
+  com.google.common.*            (Guava)
+  com.fasterxml.jackson.*        (JSON serialization)
+  org.eclipse.jetty.*            (Jetty internals)
+  org.apache.tomcat.*            (Tomcat internals)
+  sun.*, java.*, javax.*         (JDK internals — usually auto-excluded)
+  org.aspectj.*                  (AOP framework)
+  net.sf.cglib.*                 (CGLIB proxy)
+  org.objectweb.asm.*            (ASM bytecode library)
+
+PACKAGES TO RETAIN (HIGH RISK TO EXCLUDE)
+  com.mycompany.*    (your application code — contains BTs and business logic)
+  com.myapp.*        (application entry points and services)
+  Any package containing @Service, @Controller, @Repository, @RestController
+
+HOW TO EXCLUDE A PACKAGE
+Method 1 – Node Property (preferred, no restart needed):
+  In Controller UI > App > Tiers > [tier] > Nodes > [node] > Node Properties:
+  Add: bci-exclude-packages = org.springframework.*,org.apache.commons.*
+
+Method 2 – controller-info.xml or System Property:
+  -Dappdynamics.bci.exclude.packages=org.springframework.*,org.apache.commons.*
+
+Method 3 – Agent configuration file:
+  Edit: <agent-home>/conf/app-agent-config.xml
+  Add to <bci-exclude-packages> section
+
+EXCLUSION PATTERN SYNTAX
+  org.springframework.*          — all classes in package and sub-packages
+  com.myapp.util.*               — only classes in util package
+  com.myapp.model.Entity         — single specific class
+  *CacheManager*                 — wildcard in class name
+
+NO INTERCEPTOR CLASSES — ANALYSIS
+If a package has many matched classes but zero interceptors applied, it is a candidate for exclusion.
+These classes add overhead from bytecode scanning even without injection.
+Use the BCT Analyzer output in the app to identify top candidate packages.
+Exclusion reduces:
+  - Agent startup time
+  - Runtime CPU overhead from class loading hooks
+  - Memory overhead from agent metadata
+
+INSTRUMENTATION ERRORS IN BCT LOG
+  "Could not instrument class X": Corrupted class file or incompatible bytecode version
+  "java.lang.VerifyError": Bytecode injection created invalid bytecode — report to AppDynamics support
+  "OutOfMemoryError in BCT": Too many classes being processed; exclude packages, increase heap
+  "ClassNotFoundException during instrumentation": Dependency missing at load time (normal for lazy-loaded classes)

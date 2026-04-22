@@ -1,0 +1,12 @@
+# Format: property|value|description
+-Dappdynamics.controller.hostName|saas-demo.saas.appdynamics.com|Controller host name or IP address used by the Java Agent.
+-Dappdynamics.controller.port|443|Controller port. Use 443 for HTTPS (recommended for SaaS).
+-Dappdynamics.controller.ssl.enabled|true|Enable SSL/TLS for secure communication with the controller.
+-Dappdynamics.agent.accountName|customer1 (for on-prem)|AppDynamics account name configured for the controller.
+-Dappdynamics.agent.accountAccessKey|<access-key>|Access key associated with the account for agent authentication.
+-Dappdynamics.agent.applicationName|ECommerceApp|Application name shown in AppDynamics.
+-Dappdynamics.agent.tierName|CheckoutService|Tier name where this JVM/node belongs.
+-Dappdynamics.agent.nodeName|checkout-node-01|Unique node name for this JVM instance.
+-Dappdynamics.http.proxyHost|proxy.company.net|Proxy host for environments requiring outbound proxy access.
+-Dappdynamics.http.proxyPort|8080|Proxy port used with proxyHost.
+-Dappdynamics.jvm.shutdown.mark.node.as.historical|true|Marks node as historical when JVM shuts down gracefully.

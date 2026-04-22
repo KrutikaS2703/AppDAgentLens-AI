@@ -1,0 +1,178 @@
+# category: controller-config
+# product: AppDynamics Java Agent
+# tags: controller, registration, connectivity, ssl, saas, onprem, account, node
+
+AppDynamics Java Agent – Controller Connectivity & Registration Issues
+
+Overview:
+During startup, the Java Agent must successfully register with the AppDynamics Controller.
+Registration requires correct controller configuration, network connectivity, SSL alignment,
+and valid account credentials.
+
+Required Agent Properties (Startup Validation):
+- appdynamics.controller.hostName
+- appdynamics.controller.port
+- appdynamics.controller.ssl.enabled
+- appdynamics.agent.accountName
+- appdynamics.agent.accountAccessKey
+- appdynamics.agent.applicationName
+- appdynamics.agent.tierName
+- appdynamics.agent.nodeName
+
+If any of these are missing or incorrect, agent registration will fail.
+
+------------------------------------------------------------
+Common Root Causes
+------------------------------------------------------------
+
+1. Incorrect Controller Host or Port
+   - Hostname typo
+   - Wrong SaaS URL
+   - Wrong port for SSL mode
+   - Example SaaS format: <account>.saas.appdynamics.com
+
+2. SSL Configuration Mismatch (Very Common)
+   - If controller uses HTTPS (port 443), ssl.enabled must be true
+   - If controller uses HTTP (port 8090), ssl.enabled must be false
+   - Mismatch causes handshake failure or connection timeout
+
+3. Firewall or Network Restrictions
+   - Outbound port blocked (443 or 8090)
+   - Proxy misconfiguration
+   - Corporate network restrictions
+
+4. DNS Resolution Failure
+   - Controller hostname cannot be resolved
+   - Private DNS misconfiguration
+   - VPN-related DNS issues
+
+5. Invalid Account Credentials
+   - Incorrect accountName
+   - Invalid accountAccessKey
+   - License limit reached on controller
+
+6. Controller Unavailable
+   - Controller service down
+   - SaaS outage
+   - On-prem controller service stopped
+
+------------------------------------------------------------
+Common Log Error Patterns
+------------------------------------------------------------
+
+Connection Timeout:
+- "Connect to <host> failed: connect timed out"
+- "Controller connection failed"
+
+Connection Refused:
+- "Connection refused"
+
+DNS Failure:
+- "Unable to resolve controller hostname"
+
+Authentication Failure:
+- "cannot get initialization information"
+- "Agent registration failed"
+
+SSL Handshake Issues:
+- "SSLHandshakeException"
+- "Received fatal alert: handshake_failure"
+
+------------------------------------------------------------
+Diagnostic Steps
+------------------------------------------------------------
+
+1. Validate Controller Mode (SaaS vs On-Prem)
+   - SaaS: typically port 443 with ssl.enabled=true
+   - On-Prem: typically 8090 (HTTP) or 8091 (HTTPS)
+
+2. Test Network Connectivity
+   curl -v https://<controller-host>:443
+   telnet <controller-host> 443
+
+3. Validate DNS
+   nslookup <controller-host>
+
+4. Confirm Agent JVM Args
+   Verify startup contains:
+   -Dappdynamics.controller.hostName
+   -Dappdynamics.controller.port
+   -Dappdynamics.controller.ssl.enabled
+
+5. Verify Account Configuration
+   Ensure accountName matches controller login account
+   Ensure access key is correct and active
+
+------------------------------------------------------------
+Expected Agent Behavior When Disconnected
+------------------------------------------------------------
+
+- Agent continues collecting metrics locally
+- Data stored in local cache
+- Automatic reconnection attempts
+- Data is flushed when connection is restored
+- Monitoring visibility gap may appear in UI during outage
+
+------------------------------------------------------------
+Best Practice Recommendations
+------------------------------------------------------------
+
+- Always use HTTPS (443) for SaaS controllers
+- Avoid hardcoding IP; use hostname
+- Ensure nodeName uniqueness within tier
+- Validate configuration via startup log section:
+  "Full Agent Registration Info Resolver"
+- Check JVM Runtime section to confirm agent arguments are loaded
+- Check if proxy is present in between
+------------------------------------------------------------
+RAG Context Hint:
+If log contains controller.hostName + port + ssl.enabled,
+always validate SSL/port alignment first before deeper analysis.
+------------------------------------------------------------
+Support Clarification Questions (Ask Customer First)
+------------------------------------------------------------
+1. Is this SaaS or On-Prem controller?
+2. What exact controller host/port/ssl.enabled values are configured?
+3. Is traffic going through a proxy, VPN, or SSL inspection device?
+4. Did this ever work before, or is this first-time setup?
+5. Are all nodes failing or only specific nodes/tiers?
+6. What changed recently (cert rotation, key rotation, firewall, proxy, agent upgrade)?
+
+------------------------------------------------------------
+Support Triage Checklist
+------------------------------------------------------------
+[ ] Confirm -javaagent path is present in JVM startup args
+[ ] Confirm required controller/account/app/tier/node properties are present
+[ ] Confirm SSL and port alignment (443+true, 8090+false, 8091+true)
+[ ] Validate DNS resolution from app host
+[ ] Validate outbound network path to controller
+[ ] Validate account access key and account name
+[ ] Validate nodeName uniqueness within tier
+[ ] Check controller health status (SaaS status page or on-prem services)
+
+------------------------------------------------------------
+Log Analysis Playbook
+------------------------------------------------------------
+Files to request:
+- <agent-home>/logs/agent.log
+- <agent-home>/logs/AgentService.log
+- Startup command/JVM args (service script or process command line)
+
+Key patterns to grep:
+- register|registration|initialization information
+- connect timed out|connection refused|unable to resolve
+- SSLHandshakeException|handshake_failure|PKIX
+- account|access key|authentication
+
+Fast interpretation:
+- timeout/refused -> network path, firewall, or wrong host/port
+- SSLHandshakeException/PKIX -> certificate trust or SSL inspection issue
+- cannot get initialization information -> auth/account/config issue
+- resolve hostname failure -> DNS issue
+
+Resolution order (support workflow):
+1. Fix host/port/ssl mismatch
+2. Fix DNS/network path/proxy
+3. Fix certificate trust/SSL interception
+4. Fix account credentials/licensing
+5. Re-verify registration on fresh restart

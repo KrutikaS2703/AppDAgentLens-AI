@@ -1,0 +1,104 @@
+# category: agent-install
+# tags: java agent, install, jvm, -javaagent, configuration, startup, properties, controller, tier, node, application
+
+AppDynamics Java Agent – Installation and Configuration Reference
+
+INSTALLATION
+The Java agent is attached to the JVM using the -javaagent JVM argument.
+Required JVM flag:
+  -javaagent:/path/to/appagent/javaagent.jar
+
+The agent directory must contain:
+  javaagent.jar
+  conf/controller-info.xml (or use system properties)
+  verx/  (version directory with instrumentation rules)
+
+CONTROLLER CONNECTION – REQUIRED PROPERTIES
+These must be set either in conf/controller-info.xml or as JVM -D system properties:
+
+  -Dappdynamics.controller.hostName=<controller-host>
+  -Dappdynamics.controller.port=<port>              (443 for SaaS, 8090 for on-prem HTTP)
+  -Dappdynamics.controller.ssl.enabled=true         (true for SaaS/HTTPS, false for HTTP)
+  -Dappdynamics.agent.accountName=<account-name>
+  -Dappdynamics.agent.accountAccessKey=<access-key>
+  -Dappdynamics.agent.applicationName=<app-name>
+  -Dappdynamics.agent.tierName=<tier-name>
+  -Dappdynamics.agent.nodeName=<node-name>
+
+SAAS CONTROLLER DETAILS
+  Host: <account-name>.saas.appdynamics.com
+  Port: 443
+  SSL: true
+  Account name and access key from: Controller UI > Settings > License > Account
+
+ON-PREMISES CONTROLLER
+  Host: your internal controller hostname/IP
+  Port: 8090 (HTTP) or 8181 (HTTPS)
+  SSL: true if HTTPS
+
+PROXY CONFIGURATION (if traffic goes through HTTP proxy)
+  -Dappdynamics.http.proxyHost=<proxy-host>
+  -Dappdynamics.http.proxyPort=<proxy-port>
+  -Dappdynamics.http.proxyUser=<user>       (if proxy requires auth)
+  -Dappdynamics.http.proxyPassword=<pass>
+
+AGENT LOG LOCATION
+  Default: <agent-home>/logs/
+  Key log files:
+    agent.log           — main agent activity, registration, BT events
+    ByteCodeTransformer_<date>.log — BCT/instrumentation log
+    AgentService.log    — agent service events
+
+LOG LEVEL CONFIGURATION
+  In conf/logging/log4j2.xml or via node property:
+    log4j.logger.com.singularity=INFO    (default)
+    log4j.logger.com.singularity=DEBUG   (verbose, use for troubleshooting only)
+  Or set log level in Controller UI > Agent Configuration > Log Level
+
+COMMON STARTUP ERRORS AND FIXES
+1. "Unable to connect to Controller"
+   - Check hostName, port, SSL settings
+   - Verify network connectivity: telnet <controller-host> <port>
+   - Check firewall rules (outbound from app server to controller)
+
+2. "Invalid account access key"
+   - Regenerate key in Controller UI > Settings > License > Account
+   - Ensure no extra whitespace in the key value
+
+3. "Could not find or load main class"
+   - Wrong path to javaagent.jar
+   - Verify: ls -la /path/to/javaagent.jar
+
+4. "Agent not connected" in Controller UI
+   - Agent may be running but failing to register
+   - Check agent.log for registration errors
+   - Ensure appdynamics.agent.applicationName is set
+
+5. Agent loads but shows no data
+   - -javaagent set after main class (wrong position)
+   - Entry point not detected — check BCT log for class loading
+
+JVM FLAG POSITIONING (CRITICAL)
+  CORRECT:   java -javaagent:/path/javaagent.jar -jar myapp.jar
+  INCORRECT: java -jar myapp.jar -javaagent:/path/javaagent.jar
+  -javaagent MUST come before the application JAR or main class.
+
+HEAP MEMORY IMPACT
+  Agent adds approximately 50-150 MB to JVM heap usage.
+  Recommended JVM settings when running with agent:
+    -Xms512m -Xmx2g (minimum; adjust per application size)
+  For high-traffic apps with many instrumented classes: -Xmx4g or more
+
+MULTI-NODE DEPLOYMENT
+  Each JVM instance needs a UNIQUE node name.
+  Use auto-naming to avoid duplicates:
+    -Dappdynamics.agent.nodeName=<tier>-$(hostname)-$(date +%s)
+  Or use auto node naming via node property: use-simple-hostname=true
+
+UPGRADE PROCEDURE
+1. Download new agent zip from Controller UI > Download Center
+2. Extract to new directory (do not overwrite in-place)
+3. Copy conf/controller-info.xml from old agent to new
+4. Update -javaagent path in JVM startup script
+5. Restart application server
+6. Verify agent.log shows correct version and registers successfully

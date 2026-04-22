@@ -1,0 +1,129 @@
+# category: jmx-guide
+# tags: jmx, mbean, custom metrics, jmx-service, permission, monitoring, metric browser, metricPath, reportMetric
+
+AppDynamics – JMX Monitoring and Custom Metrics
+
+JMX MONITORING OVERVIEW
+AppDynamics can pull metrics from any JMX MBean exposed by the JVM or application.
+This allows monitoring of application-specific counters, cache stats, connection pool sizes, queue depths, etc.
+
+HOW JMX MONITORING WORKS
+1. Agent connects to the JVM's MBean server (same JVM, no remote connection needed)
+2. Polls configured MBean attributes at the metrics collection interval (default: 1 minute)
+3. Reports values to Controller as custom metrics
+4. Visible in Metric Browser: Application Infrastructure Performance > [tier] > [node] > JMX
+
+CONFIGURING JMX METRICS IN CONTROLLER UI
+Path: Controller UI > App > Configuration > Instrumentation > JMX (or Metric Browser > Custom)
+For each metric:
+  - Object Name: exact MBean object name (e.g., java.lang:type=Memory)
+  - Attribute: MBean attribute name (e.g., HeapMemoryUsage)
+  - Sub-attribute: if attribute is a CompositeData (e.g., used, committed, max)
+  - Metric Type: AVERAGE, SUM, OBSERVATION, CURRENT_VAL
+
+COMMON STANDARD JMX MBEANS TO MONITOR
+JVM Heap Memory:
+  Object Name:  java.lang:type=Memory
+  Attribute:    HeapMemoryUsage
+  Sub-attributes: used, committed, max, init
+
+Thread Count:
+  Object Name:  java.lang:type=Threading
+  Attribute:    ThreadCount (total live threads)
+  Attribute:    PeakThreadCount
+  Attribute:    DaemonThreadCount
+
+Garbage Collection:
+  Object Name:  java.lang:type=GarbageCollector,name=G1 Young Generation
+  Attribute:    CollectionCount
+  Attribute:    CollectionTime (ms)
+  (Repeat for G1 Old Generation or other GC names)
+
+Class Loading:
+  Object Name:  java.lang:type=ClassLoading
+  Attribute:    LoadedClassCount
+  Attribute:    TotalLoadedClassCount
+
+Tomcat Thread Pool:
+  Object Name:  Catalina:type=ThreadPool,name="http-nio-8080"
+  Attribute:    currentThreadCount
+  Attribute:    currentThreadsBusy
+  Attribute:    maxThreads
+
+Tomcat Request Processing:
+  Object Name:  Catalina:type=GlobalRequestProcessor,name="http-nio-8080"
+  Attribute:    requestCount
+  Attribute:    errorCount
+  Attribute:    processingTime
+
+HikariCP Connection Pool:
+  Object Name:  com.zaxxer.hikari:type=Pool (myPool)
+  Attribute:    ActiveConnections
+  Attribute:    IdleConnections
+  Attribute:    PendingThreads
+  Attribute:    TotalConnections
+
+Ehcache / JCache:
+  Object Name:  net.sf.ehcache:type=CacheStatistics,CacheManager=...,name=myCache
+  Attribute:    CacheHits
+  Attribute:    CacheMisses
+  Attribute:    ObjectCount
+
+JMX PERMISSION DENIED ERRORS
+Error in agent.log:
+  "JMX access denied"
+  "javax.management.SecurityException: Access denied"
+  "com.sun.jmx.remote.security.MBeanServerFileAccessController"
+
+Causes:
+  - JVM started with JMX security enabled (jmxremote.access file in use)
+  - MBean server requires authentication the agent is not providing
+  - OS-level Java security policy restricting MBean access
+
+Fixes:
+  1. Disable JMX security if only used internally:
+     Remove: -Dcom.sun.management.jmxremote.authenticate=true
+     Add:    -Dcom.sun.management.jmxremote.authenticate=false
+  2. Add AppDynamics agent to JMX access file:
+     Edit: $JRE_HOME/lib/management/jmxremote.access
+     Add: appdynamics readwrite
+  3. If using Java security policy, add permission:
+     permission javax.management.MBeanServerPermission "createMBeanServer";
+     permission javax.management.MBeanPermission "*", "*";
+  4. Ensure agent runs with same user/permissions as the JVM process
+
+CUSTOM METRICS VIA JAVA AGENT API
+For programmatic custom metric reporting from application code:
+
+  import com.singularity.ee.agent.systemagent.api.MetricWriter;
+  import com.singularity.ee.agent.systemagent.api.AManagedMonitor;
+
+  // Inside any monitored method:
+  MetricWriter writer = getMetricWriter(
+      "Custom Metrics|MyApp|OrdersProcessed",
+      MetricWriter.METRIC_AGGREGATION_TYPE_OBSERVATION,
+      MetricWriter.METRIC_TIME_ROLLUP_TYPE_CURRENT,
+      MetricWriter.METRIC_CLUSTER_ROLLUP_TYPE_INDIVIDUAL
+  );
+  writer.printMetric(String.valueOf(ordersProcessed));
+
+METRIC PATH CONVENTIONS
+AppDynamics custom metric paths:
+  Custom Metrics|<tier>|<category>|<metric-name>
+  Application Infrastructure Performance|<tier>|<node>|JMX|<MBean>|<attribute>
+
+Best practices:
+  - Use pipe | as separator
+  - Keep names short and descriptive
+  - Group related metrics under same prefix
+  - Avoid special characters except | and spaces
+
+METRIC TYPES
+  AVERAGE         — average of all values in the minute
+  SUM             — total of all values in the minute
+  CURRENT_VAL     — last value reported in the minute
+  OBSERVATION     — every value is stored individually
+
+VIEWING JMX METRICS
+  Controller UI > Metric Browser > Application Infrastructure Performance > [tier] > [node] > JMX
+  Or: Search in Metric Browser by MBean attribute name

@@ -1,0 +1,39 @@
+
+- JMX related
+
+name: jmx-appserver-mbean-finder-delay-in-seconds
+type: Integer
+value: 120
+description: Delay in seconds before the agent starts searching for JMX MBean servers on the app server. Increase this value if the app server takes longer to register its MBeans during startup.
+
+name: jmx-rediscover-mbean-servers
+type: Boolean
+value: true
+description: To rediscover JMX MBeans. When enabled, the agent will periodically re-scan for JMX MBean servers in case they were registered after the initial discovery window.
+
+- Snapshots related 
+
+name: max-concurrent-snapshots
+type: Integer
+value: 20
+description: Maximum number of total snapshots that are allowed including continuing transactions
+
+name: max-continuing-concurrent-snapshots
+type: Integer
+value: 100
+description: This property controls how many snapshots we start in parallel. If you have 100 business transactions which are eligible for a snapshot, we only start 5 in parallel. The maximum number of total snapshots that are allowed concurrently, including continuing transactions. When the queue goes over the value set, additional snapshots are dropped.
+
+name: max-continuing-snapshots-per-minute
+type: Integer
+value: 200
+description: continuing snapshots per minute
+
+name: enable-async2-art
+type: Boolean
+value: true
+description: to disable async2.0 art
+
+Node Property: enable-backend-response-decoration
+Type: Boolean
+Value: True
+description: retrying backend resolution for failed exit calls

@@ -1,0 +1,100 @@
+# category: error-resolution
+# tags: error detection, exception, http error, snapshot, call graph, slow transaction, data collector, diagnostic
+
+AppDynamics – Error Detection, Snapshots, and Diagnostic Data Collection
+
+ERROR DETECTION OVERVIEW
+AppDynamics detects errors at the BT level. A BT is marked as an error if:
+  1. An unhandled exception propagates up the call stack
+  2. The HTTP response code is in the error range (4xx, 5xx — configurable)
+  3. A custom error rule matches (string in response body, specific exception type, etc.)
+  4. A data collector captures an error condition
+
+DEFAULT HTTP ERROR CODES TREATED AS ERRORS
+  400, 401, 403, 404, 405, 406, 415, 500, 502, 503, 504
+  Configurable in: Controller UI > App > Configuration > Error Detection > HTTP Error Codes
+
+CONFIGURING ERROR DETECTION
+Controller UI > App > Configuration > Error Detection:
+  - HTTP Status Codes: add/remove codes treated as errors
+  - Exceptions: specify exception types to ignore or always flag
+  - Mark as Error: define custom rules (response contains string, etc.)
+  - Ignore Exceptions: e.g., ignore FileNotFoundException, ignore 404 for specific URIs
+
+TRANSACTION SNAPSHOTS
+A Transaction Snapshot is a detailed recording of a single BT execution.
+Captured automatically when a BT is:
+  - Slow (> slow threshold, default 500ms)
+  - Very Slow (> 3x slow threshold)
+  - Stalled (> 10x threshold, configurable)
+  - An Error
+  - First time a new BT executes
+
+Snapshot contains:
+  - Full call graph (every method call timed)
+  - HTTP request data (URL, headers, parameters — if data collectors configured)
+  - Exit calls (DB queries, HTTP calls, message queues)
+  - Thread state at each exit call
+  - Data collector values (user ID, session ID, etc.)
+  - Error/exception details
+
+SNAPSHOT CONFIGURATION
+Controller UI > App > Configuration > Transaction Snapshots:
+  - Slow BT threshold: milliseconds (default 500ms)
+  - Very Slow multiplier: default 3x
+  - Snapshot sampling rate: 1 per 10 minutes (default), or continuous for debugging
+  - Thread dump settings: capture thread dump with snapshot? Yes/No
+
+DATA COLLECTORS
+Data collectors inject additional context into snapshots.
+Types:
+  1. HTTP Request Data Collector — capture HTTP headers, URL parameters, cookies
+     Example: capture "userId" parameter from all /api/user/* requests
+  2. Method Invocation Data Collector (MIDC) — capture return values or arguments of any method
+     Example: capture return value of UserService.findById() to see which user ID caused an error
+  3. POJO Data Collector — capture fields from any object in the call chain
+  4. Session Key Data Collector — capture session attributes
+
+Configuring HTTP Request Data Collector:
+  Controller UI > App > Configuration > Instrumentation > Data Collectors > HTTP Request
+  Add: Parameter Name = "userId", Scope = All BTs or specific BT pattern
+
+Configuring MIDC:
+  Controller UI > App > Configuration > Instrumentation > Data Collectors > Method Invocation
+  Add: Class = "com.myapp.UserService", Method = "findById", Capture = "return value"
+
+DATA COLLECTOR IN SNAPSHOTS
+After configuration, the captured values appear in:
+  Snapshot > Business Data tab
+  Useful for: correlating errors to specific users, sessions, orders, or IDs
+
+CALL GRAPH READING TIPS
+- Root entry at bottom, most recent call at top (same as Java stack trace)
+- Each method shows: time spent (ms), % of total BT time
+- Exit calls (DB, HTTP, MQ) shown as leaf nodes with timing
+- Red entries = exceptions thrown
+- Orange entries = slow methods
+- "Stall" label = thread was paused (GC, OS scheduling)
+
+COMMON ERROR PATTERNS IN SNAPSHOTS
+1. NullPointerException at entry point:
+   - Missing required parameter in request
+   - Uninitialized service dependency (Spring bean wiring issue)
+
+2. SQLException / DB timeout:
+   - Exit call to DB shows long duration
+   - Check query in snapshot, add index or optimize
+
+3. HTTP 500 with "Connection refused":
+   - Downstream service call failing
+   - Check exit call URL in snapshot
+
+4. SocketTimeoutException:
+   - HTTP client or JDBC call exceeds configured timeout
+   - Increase timeout or fix the slow downstream service
+
+SUPPRESSING SNAPSHOT NOISE
+To reduce snapshot volume during known issues:
+  - Increase slow BT threshold temporarily
+  - Set sampling mode to "Sampling" instead of "Continuous"
+  - Add error exclusion rules for known benign exceptions

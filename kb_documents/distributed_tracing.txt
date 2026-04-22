@@ -1,0 +1,98 @@
+# category: bt-guide
+# tags: distributed tracing, correlation, X-singularityheader, cross-tier, microservices, propagation, async, EUM, W3C, OpenTelemetry
+
+AppDynamics – Distributed Tracing and Cross-Tier Correlation
+
+OVERVIEW
+AppDynamics stitches BTs across multiple tiers (services) into a single end-to-end flow.
+This is called "correlation" or "distributed tracing" in AppDynamics terminology.
+Each tier must have an AppDynamics agent installed for full correlation.
+
+CORRELATION MECHANISM
+When Tier A makes an HTTP call to Tier B:
+  1. Agent on Tier A injects a correlation header into the outbound HTTP request
+  2. Agent on Tier B reads the header and links the incoming request to the same BT
+  3. The call graph in Transaction Snapshots spans both tiers
+
+HTTP CORRELATION HEADER
+  Header name: X-singularityheader
+  Contains: encoded correlation data (application ID, BT ID, originating tier, timing context)
+  Injected automatically when the agent detects outbound HTTP calls via:
+    - Apache HttpClient
+    - OkHttp
+    - URLConnection / HttpURLConnection
+    - Spring RestTemplate / WebClient
+    - Jersey Client
+    - Feign Client
+
+JMS / MESSAGE QUEUE CORRELATION
+  JMS correlation property: ADCORRELATION_DATA (added to JMS message properties)
+  Supported: ActiveMQ, IBM MQ, RabbitMQ (via AMQP), Kafka (with plugin)
+  The consuming thread reads the property and links the BT
+
+CORRELATION BREAKS — COMMON CAUSES AND FIXES
+1. Proxy or API Gateway strips X-singularityheader:
+   - Symptom: BT appears in Tier A but new BT starts in Tier B
+   - Fix: Configure proxy/gateway to pass through X-singularityheader
+   - NGINX: proxy_pass_header X-singularityheader;
+   - AWS API Gateway: configure integration request to pass custom headers
+   - Spring Cloud Gateway: no filter stripping the header
+
+2. Async thread handoff not tracked:
+   - Symptom: BT loses context when passed to Executor, CompletableFuture, etc.
+   - Fix: Enable async correlation via node property: enable-async-correlation=true
+   - AppDynamics instruments common async frameworks automatically
+   - For custom executors: use AppDynamics async correlation API
+
+3. Non-Java tier in the middle:
+   - Symptom: Node.js, Python, Go service in the middle — no AppD agent
+   - Fix: Install AppDynamics agent for that language, or use OpenTelemetry bridge
+   - Alternative: manual header propagation in the non-Java service
+
+4. HTTP client not auto-detected:
+   - Symptom: Outbound calls made but no exit call shown in snapshot
+   - Fix: Use a supported HTTP client library, or configure custom exit point in Controller UI
+
+5. SSL certificate mismatch on internal service:
+   - Symptom: HTTP call fails entirely, no correlation possible
+   - Fix: Import certificate to JVM truststore
+
+ASYNC CORRELATION NODE PROPERTIES
+  enable-async-correlation: true     — enable for all async mechanisms
+  async-call-start-timeout: 5000     — ms to wait for async call to start (default 5000)
+  async-call-end-timeout: 60000      — ms to wait for async call to complete (default 60000)
+
+OPENTELEMETRY INTEGRATION
+AppDynamics supports OpenTelemetry for hybrid environments:
+  - OTel SDK can send traces to AppDynamics via OTLP exporter
+  - AppDynamics can propagate W3C Trace Context headers alongside its own
+  - Useful for: mixing AppDynamics agents with OTel-instrumented services
+  - Configure in Controller UI > App > Configuration > Distributed Tracing > OpenTelemetry
+
+W3C TRACE CONTEXT SUPPORT
+  AppDynamics can propagate: traceparent, tracestate headers (W3C standard)
+  Enable via node property: use-w3c-correlation=true
+  Allows correlation with Zipkin, Jaeger, or any W3C-compatible system
+
+EUM (END USER MONITORING) CORRELATION
+  AppDynamics EUM (browser/mobile monitoring) correlates with server-side BTs via:
+  - JavaScript beacon injection (automatic with EUM agent)
+  - singularityHeader in AJAX requests (automatic)
+  - Appears in Transaction Snapshots as: "Originated from Browser"
+
+VIEWING CORRELATION IN CONTROLLER UI
+  Transaction Snapshot > Flow Map tab — shows the end-to-end call across tiers
+  Transaction Snapshot > Call Graph — spans multiple tiers in one view
+  Application Flow Map > Topology view — overall BT flow between services
+
+CORRELATION API (MANUAL)
+For custom async handoff patterns where auto-detection doesn't work:
+  import com.appdynamics.apm.appagent.api.AgentDelegate;
+  // Save correlation on originating thread:
+  String correlationData = AgentDelegate.getInstance().getCorrelationHeader();
+  // Restore on receiving thread:
+  AgentDelegate.getInstance().setCorrelationHeader(correlationData);
+
+METRIC: BT CORRELATION RATE
+  Metric path: Application Infrastructure Performance > [tier] > [node] > Errors > Agent Events
+  A drop in correlated BTs across tiers indicates a correlation break.

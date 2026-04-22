@@ -1,0 +1,170 @@
+# category: bct-guide
+# tags: performance, overhead, applied-classes, instrumentation, bytecode
+
+BCT - High Number of Applied Classes Performance Impact
+
+Context:
+When AppDynamics instruments classes, each "applied" class gets bytecode transformation. This is where actual monitoring overhead occurs.
+
+What "Applied Classes" Means:
+- Classes that have interceptors successfully injected
+- These classes are actively monitored at runtime
+- Each method call in these classes may be intercepted for metrics
+
+Performance Impact Thresholds:
+
+Low Risk (< 500 applied classes):
+- Typical overhead: 2-5%
+- Memory: ~100-200 MB additional heap
+- Generally acceptable for most applications
+
+Medium Risk (500-2000 applied classes):
+- Overhead: 5-10%
+- Memory: ~200-400 MB additional heap
+- May see GC frequency increase
+- Monitor application response times
+
+High Risk (2000-5000 applied classes):
+- Overhead: 10-20%
+- Memory: ~400-800 MB additional heap
+- Significant GC impact
+- Response time degradation likely
+- Requires careful monitoring and tuning
+
+Critical (> 5000 applied classes):
+- Overhead: 20%+
+- Memory: 800+ MB additional heap
+- Severe performance degradation
+- Full GC every few minutes
+- Application may become unstable
+- IMMEDIATE ACTION REQUIRED
+
+Root Causes of Excessive Applied Classes:
+
+1. Overly Broad Matching Patterns:
+   - Wildcard patterns capturing too many packages
+   - Example: com.* captures entire application
+   - Framework packages unnecessarily instrumented
+
+2. Default Instrumentation Too Aggressive:
+   - AppDynamics default config may instrument more than needed
+   - Includes many framework classes you may not care about
+
+3. Multiple Custom Interceptors:
+   - Each custom interceptor multiplies instrumented classes
+   - 3 interceptors × 1000 classes = 3000 total applications
+
+4. Deep Framework Instrumentation:
+   - Spring, Hibernate internal classes instrumented
+   - Most of these don't provide useful business metrics
+
+Symptoms in Production:
+
+Performance Degradation:
+- Gradual slowdown after agent startup (instrumentation loading)
+- Response times increase by 50-200ms+
+- Throughput reduced by 10-30%
+
+Memory Issues:
+- Heap usage climbs to >80% consistently
+- Full GC every 2-5 minutes
+- Young Gen collections increase from 50ms to 200ms+
+- OutOfMemory errors in metaspace (class metadata)
+
+CPU Overhead:
+- Agent threads consuming 5-15% CPU
+- GC CPU time increases significantly
+
+Solutions:
+
+Immediate Actions (If > 2000 Applied Classes):
+
+1. Review and Narrow Instrumentation Scope:
+   - List all applied classes: Review agent logs for class names
+   - Identify patterns: Group by package prefix
+   - Ask: "Do I need metrics from this package?"
+
+2. Exclude Framework Internals:
+   Add to exclude configuration:
+   - org.springframework.* (exclude most internals, keep only controllers/services)
+   - org.hibernate.* (exclude internals, keep query execution)
+   - org.apache.* (exclude commons, keep only business-critical)
+   - com.sun.* (JDK internals - never need these)
+   - java.* (JDK classes - never instrument)
+
+3. Focus on Business Logic Only:
+   Instrument ONLY:
+   - Your application packages (com.yourcompany.*)
+   - REST controllers/endpoints
+   - Service layer classes
+   - DAO/Repository classes
+   - Critical business transactions
+
+Long-Term Optimization:
+
+1. Use Precise Matching Patterns:
+   Instead of: com.*
+   Use: com.yourcompany.services.*, com.yourcompany.controllers.*
+
+2. Configure Method-Level Exclusions:
+   - Exclude getters/setters (low value, high volume)
+   - Exclude toString, hashCode, equals
+   - Exclude private utility methods
+
+3. Review Custom Interceptors:
+   - Are all custom interceptors necessary?
+   - Can you consolidate multiple interceptors?
+   - Remove interceptors that duplicate default instrumentation
+
+4. Implement Gradual Rollback:
+   - Baseline: Measure current applied classes count
+   - Exclude 500 classes at a time
+   - Test performance after each exclusion batch
+   - Stop when performance is acceptable
+
+Configuration Examples:
+
+Exclude Framework Packages (appagent.cfg or JVM args):
+-Dappdynamics.agent.excludePackages=org.springframework,org.hibernate,org.apache.commons
+
+Enable Only Business Packages:
+-Dappdynamics.agent.includePackages=com.yourcompany
+
+Limit Methods Per Class (reduce overhead):
+-Dappdynamics.agent.maxMethodsPerClass=50
+
+Monitoring After Changes:
+
+Track These Metrics:
+1. Applied classes count (agent logs on startup)
+2. Heap usage (should drop by 100-200 MB per 1000 excluded classes)
+3. GC frequency (should decrease)
+4. Response time P95/P99 (should improve)
+5. CPU usage (agent threads should use <5%)
+
+Validation:
+- Test in non-prod first
+- Run load test before/after comparison
+- Monitor for 24-48 hours to see trends
+
+When to Escalate:
+- If excluding classes doesn't help: May be application memory leak
+- If memory keeps growing: Check for agent version bugs
+- If response times still bad: Profile actual application code
+
+Best Practices Going Forward:
+
+Start Narrow, Expand as Needed:
+1. Begin with only your main application package
+2. Add instrumentation incrementally
+3. Measure impact after each addition
+
+Regular Health Checks:
+- Review applied classes count quarterly
+- Remove instrumentation for deprecated code
+- Keep instrumentation aligned with business priorities
+
+Testing:
+- Include agent in performance test environments
+- Set SLAs for instrumentation overhead (e.g., <5%)
+- Test with realistic application load

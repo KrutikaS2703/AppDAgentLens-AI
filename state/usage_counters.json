@@ -1,0 +1,8 @@
+{
+  "agent_analyzer_access": 1,
+  "ai_assistant_access": 2,
+  "bct_analyzer_access": 1,
+  "last_updated_utc": "2026-04-22T12:18:51Z",
+  "scan_javaagent_logs": 1,
+  "ui_access": 1
+}

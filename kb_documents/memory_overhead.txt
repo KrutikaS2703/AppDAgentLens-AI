@@ -1,0 +1,172 @@
+# category: jvm-guide
+# tags: memory, heap, jvm, garbage-collection, performance, overhead
+
+JVM Memory Configuration for AppDynamics Agent
+
+Memory Overhead:
+AppDynamics monitoring adds significant memory usage to your JVM:
+- Minimum: 30-50 MB for core agent classes
+- Typical: 100-200 MB additional for instrumentation metadata
+- Peak: Can spike 300-500+ MB during full bytecode instrumentation load
+- GC Operations: Additional overhead from collecting metrics during GC pauses
+
+Root Cause of Issues:
+Agent bytecode instrumentation creates class metadata for every instrumented class
+Each interceptor adds method instrumentation objects
+Metric collection buffers hold data before sending to controller
+Custom metrics and extensive instrumentation multiply overhead
+
+Symptoms of Memory Pressure:
+- Full garbage collection every <5 minutes
+- Heap usage consistently >80%
+- Young generation GC pauses increase from 50ms to 200+ms
+- Application responsiveness degrades after agent startup
+- OutOfMemory errors in logs
+- High GC CPU usage reducing available application CPU
+
+Impact on Performance:
+- High GC pressure: Unpredictable latency spikes
+- Memory fragmentation: Over time, heap becomes fragmented
+- CPU overhead: GC steals CPU cycles from application
+- Cascading effect: More load → More GC → Less capacity
+
+Recommended JVM Configuration:
+
+1. Initial Heap Setting (for typical applications):
+   -Xms2G -Xmx4G
+   
+   Adjust based on:
+   - Application baseline memory needs
+   - Add 200-300 MB for AppDynamics agent
+   - Add 500+ MB for instrumentation metadata
+   - High-traffic apps may need 6-8GB total
+
+2. Garbage Collector Tuning (Recommended):
+   -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+ParallelRefProcEnabled
+   
+   G1GC benefits
+   - Better for larger heaps (>4GB)
+   - More predictable pause times
+   - Handles memory overhead better than CMS
+
+3. AppDynamics Specific Tuning:
+   -Dappdynamics.agent.maxBytecodeSize=50m
+   Limits agent bytecode cache to prevent unbounded growth
+   
+4. Full GC Parameter:
+   -XX:+DisableExplicitGC
+   Prevents application-triggered full GCs
+
+5. Monitor Metaspace (Java 8+):
+   -XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=1g
+   Agent class metadata stored in Metaspace
+   Increase if getting Metaspace OOM
+
+Optimization Strategies:
+
+1. Reduce Instrumentation Scope:
+   - Review which classes/methods are instrumented
+   - Exclude non-critical packages from instrumentation
+   - Use pattern matching to focus on core business logic
+   - Less instrumentation = Lower memory overhead
+
+2. Monitor GC Behavior:
+   Enable GC logging:
+   -Xloggc:gc.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps
+   
+   Analyze trends:
+   - Track GC frequency over time
+   - Identify if issue grows with data load
+   - Compare before/after agent startup
+
+3. Baseline and Tune:
+   1. Measure application memory without agent
+   2. Enable agent and measure again (difference = agent overhead)
+   3. Adjust -Xmx to maintain 70-80% utilization under load
+   4. Verify GC pause times stay <500ms
+
+4. Application Code Changes:
+   - Review application's own memory allocations
+   - Agent amplifies impact of memory leaks
+   - Fix application leaks before blaming agent
+
+Heap Size Decision Matrix:
+┌─────────────────────┬────────────┬──────────────────┐
+│ App Complexity      │ Baseline   │ With Agent       │
+├─────────────────────┼────────────┼──────────────────┤
+│ Small/Simple        │ 1-2GB      │ 2-3GB            │
+│ Medium/Typical      │ 2-4GB      │ 4-6GB            │
+│ Large/Complex       │ 4-8GB      │ 6-10GB           │
+│ High-traffic        │ 6-12GB     │ 8-14GB           │
+└─────────────────────┴────────────┴──────────────────┘
+
+Troubleshooting Memory Issues:
+
+If heap still full after increasing -Xmx:
+1. Check instrumentation scope (may be instrumenting too much)
+2. Review custom metrics (may be too granular)
+3. Disable optional features (e.g., CLR profiling if Java-only)
+4. Consider agent resource constraints on container
+
+Performance Target:
+- Aim for <5% performance overhead from monitoring
+- 70-80% average heap utilization
+- <200ms GC pause times
+- Sub-second transaction response times acceptable
+
+Testing Configuration Changes:
+1. Make one change at a time
+2. Run load test for 10+ minutes
+3. Monitor GC behavior and memory trends
+4. Verify application responsiveness
+5. Document working configuration
+
+------------------------------------------------------------
+Support Clarification Questions (Ask Customer First)
+------------------------------------------------------------
+1. What is the current -Xms/-Xmx setting?
+2. What JVM version and GC algorithm is in use?
+3. Is this a new installation or regression after an agent upgrade or config change?
+4. Is there a heap dump or GC log available?
+5. What is the application load profile (# threads, # requests/sec)?
+6. Is the application running in a container with memory limits?
+
+------------------------------------------------------------
+Support Triage Checklist
+------------------------------------------------------------
+[ ] Confirm -Xmx is at least 200-300 MB above application baseline (without agent)
+[ ] Confirm GC algorithm (-XX:+UseG1GC recommended for heaps > 4 GB)
+[ ] Confirm MetaspaceSize/MaxMetaspaceSize set (for Java 8+)
+[ ] Confirm instrumentation scope is not too broad (check applied class count in BCT log)
+[ ] Confirm no memory leak in application code (heap grows unboundedly?)
+[ ] Confirm OOM type: heap space vs metaspace vs GC overhead limit exceeded
+
+------------------------------------------------------------
+Log Analysis Playbook
+------------------------------------------------------------
+Files to request:
+- agent.log (first 200 lines and last 200 lines)
+- GC log (if -Xloggc enabled)
+- Heap dump (.hprof) if OOM occurred
+- ByteCodeTransformer log (for applied class count)
+- Full JVM startup args (to confirm -Xmx, GC flags)
+
+Key patterns to grep:
+- OutOfMemoryError|java.lang.OutOfMemory
+- GC overhead limit exceeded
+- Metaspace|PermGen
+- applied.*classes|interceptors applied
+
+OOM type interpretation:
+- "Java heap space" -> heap too small; increase -Xmx or reduce instrumentation scope
+- "GC overhead limit exceeded" -> GC consuming >98% CPU; heap too small or leak
+- "Metaspace" -> class metadata space full; set -XX:MaxMetaspaceSize
+- "unable to create new native thread" -> OS-level thread exhaustion; not heap issue
+
+Resolution order:
+1. Increase -Xmx proportionally (baseline + 300 MB minimum headroom)
+2. Enable G1GC if not already used
+3. Reduce instrumentation scope (exclude non-essential packages)
+4. Fix application memory leak if heap grows unboundedly
+5. Set Metaspace limits if Metaspace OOM
+6. Re-run under load and verify GC pause times < 200 ms

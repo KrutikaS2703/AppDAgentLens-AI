@@ -1,0 +1,83 @@
+# category: bt-guide
+# tags: business transaction, bt, detection, naming, drop, overflow, limit, entry point, correlation, http, servlet, spring, ejb, jms, background
+
+AppDynamics Business Transactions – Full Guide
+
+OVERVIEW
+A Business Transaction (BT) is the fundamental monitoring unit in AppDynamics. Each BT represents a unique type of end-user request tracked from entry to exit across all tiers.
+
+SUPPORTED ENTRY POINT TYPES
+- Servlet/HTTP (javax.servlet, jakarta.servlet)
+- Spring MVC (@RequestMapping, @GetMapping, @PostMapping, @PutMapping, @DeleteMapping)
+- JAX-RS / Jersey / RESTEasy / CXF (@Path-annotated methods)
+- EJB (@Stateless, @Stateful, @MessageDriven)
+- JMS (javax.jms.MessageListener.onMessage())
+- Background threads (Runnable, Callable, @Scheduled, Quartz, Spring Batch, Executors)
+- gRPC service methods
+- SOAP / Web Services (WSDL-mapped operations)
+- Struts, JSF, Wicket frameworks
+
+BT NAMING LOGIC (PRIORITY ORDER)
+1. Custom Match Rule (highest priority) — Controller UI > App > BT Detection > Custom Rules
+2. Node property: transaction-name-priority (url | method)
+3. Default per entry point:
+   - Servlet/Spring MVC: URI path (first 2 segments by default)
+   - EJB: interface + method name
+   - JMS: destination name
+   - Background: ClassName.methodName
+
+BT REGISTRATION LIMIT
+Default limit: 200 unique BTs per application.
+After limit is hit, new BTs are DROPPED with log message:
+  "Limit of X business transactions reached for application, dropping transaction: <name>"
+Fixes:
+  - Consolidate with Custom Match Rules (e.g., /api/users/* instead of /api/users/123)
+  - Increase limit via node property: max-business-transactions=500
+  - Or in Controller UI: App > Configuration > BT Detection > Transaction Limits
+
+BT DROP CAUSES AND DIAGNOSTICS
+1. BT limit reached → consolidate with match rules or raise limit
+2. BT excluded by rule → check Controller UI > App > BT Detection > Exclude Rules
+3. Auto-excluded after 30 days of <2 calls/min → re-enable in BT Management
+4. Background thread detection disabled → enable via node property: find-entry-points=true
+5. Agent cold-start delay → first calls during startup may be missed
+6. Missing -javaagent JVM arg → agent not loaded at all
+
+Log indicators of BT drop:
+  "Dropping Business Transaction"
+  "Transaction being dropped"
+  "BT limit reached"
+  "Transaction excluded"
+
+BT HIGH DROP RATE
+- Drop rate > 10% → investigate BT matching configuration
+- Drop rate > 50% → critical configuration problem
+- Calculate: drops / (calls + drops) * 100
+- Log: grep for "Dropping" in agent.log
+
+BT NAMING BEST PRACTICES
+- Use wildcards: /api/users/* instead of /api/users/123
+- Use URI template normalization for REST APIs with IDs
+- Group background jobs by logical name, not thread ID
+- Separate high-volume entry points into dedicated tiers
+
+CROSS-TIER BT CORRELATION (DISTRIBUTED TRACING)
+- AppDynamics injects singularity header: X-singularityheader (HTTP)
+- JMS correlation: ADCORRELATION_DATA message property
+- Missing header = no cross-tier stitch; BT appears split at each tier
+- Broken by: proxies stripping custom headers, async executor not tracked, non-Java intermediaries
+- Fix: ensure proxy passes through X-singularityheader; use enable-async-correlation=true node property
+
+BT SNAPSHOT TRIGGERS
+- Slow BT (> slow threshold, default 500ms)
+- Very Slow BT (> 3x slow threshold)
+- Error BT (exception or HTTP error code detected)
+- First occurrence of a new BT
+
+USEFUL NODE PROPERTIES FOR BT TUNING
+- find-entry-points: true/false — enable/disable auto-detection per entry point type
+- bt-name-delimiter: / — character to split URI for naming
+- enable-async-correlation: true — track correlation across async threads
+- transaction-name-priority: url — prefer URL over method name for naming
+- max-business-transactions: 200 — max registered BTs (increase if hitting limit)
+- disable-bt-on-exit: true — suppress BTs that only have exit calls (no entry)

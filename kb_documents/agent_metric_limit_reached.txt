@@ -1,0 +1,100 @@
+# category: agent-limits
+# tags: metric, limit, exceeded, capacity, threshold
+
+Agent - Metric Limit Reached
+
+Symptom: High number of ERROR lines about metric limits, BT drops increased, or monitoring gaps
+
+Root Causes:
+1. Too many unique Business Transactions (BT limit exceeded)
+2. Too many unique metrics being collected
+3. Agent data collection exceeds configured capacity
+4. Dynamic naming causing excessive unique metric variants
+5. Application generating unlimited unique transaction names
+6. Interceptor scope too broad, capturing too many variants
+
+Impact:
+- Business transactions start getting dropped
+- Metrics stop being collected (most recent data dropped first)
+- Incomplete performance visibility
+- Gaps in transaction tracking
+- Agent may throttle data collection to protect controller
+
+Common Scenarios:
+- Each request parameter creates new BT: /api/user/123, /api/user/456, /api/user/789 → 3 BTs
+- Dynamic transaction names: "Order-" + timestamp → new BT every second
+- Unconstrained custom metrics in instrumentation
+- Legacy code with unlimited ID variations
+
+Solutions:
+
+1. Review Transaction Naming:
+   - Use static transaction names instead of request parameters
+   - Example: Group all /api/user/{id} as single "GetUser" transaction
+   - Use BT grouping rules to consolidate variants
+
+2. Check Configuration Limits:
+   - Review agent configuration for max BT settings
+   - Check controller settings: Administration > AppDynamics Agent Management
+   - Increase limits if license allows or contact support
+
+3. Reduce Unique Metrics:
+   - Review custom interceptors - may be creating too many metric variants
+   - Reduce instrumentation scope to essential classes only
+   - Remove or exclude instrumentation for dynamic/high-variance code
+
+4. Implement Transaction Grouping:
+   - Use URL grouping rules to consolidate similar requests
+   - GROUP BY parameters instead of capturing all variants
+   - Configure BT naming to normalize parameter values
+
+5. Monitor and Baseline:
+   - Track current BT count and trend
+   - Establish alert on BT creation rate
+   - Identify problematic code creating excessive variants
+
+Temporary Workaround:
+- Restart agent (clears in-memory metrics)
+- Data already sent to controller is retained
+- Issue will return if root cause not addressed
+
+Prevention:
+- Test instrumentation in dev environment first
+- Monitor BT count during deployment
+- Use naming conventions that avoid parameter variations
+- Implement metric sampling for high-volume scenarios
+
+Support Clarification Questions:
+1. Is the alert about BT limit, metric limit, or both?
+2. Which application/tier/node is affected?
+3. When did drops start, and what deployment happened before that?
+4. Do BT names include IDs/timestamps/UUIDs?
+5. Any custom data collectors or custom metrics recently added?
+
+Support Triage Checklist:
+[ ] Capture current BT count and BT creation rate
+[ ] Confirm whether names are highly dynamic (URI IDs/query params/timestamps)
+[ ] Check max-business-transactions/node property and controller BT limit settings
+[ ] Review custom metrics cardinality (metric path contains IDs?)
+[ ] Review recent release or config changes causing cardinality explosion
+
+Log Analysis Playbook:
+Files:
+- agent.log
+- ByteCodeTransformer*.log (if custom instrumentation changed)
+
+Patterns:
+- limit.*business transaction|BT limit reached|dropping transaction
+- metric.*limit|maximum metrics|discarding metrics
+- creating new business transaction|registering business transaction
+
+Decision path:
+- If BT cardinality issue: normalize naming + grouping rules first
+- If metric cardinality issue: remove dynamic dimensions from metric path
+- If both: fix naming/cardinality before increasing limits
+
+Recommended remediation sequence:
+1. Stop cardinality growth (naming normalization, grouping)
+2. Reduce nonessential instrumentation/custom metrics
+3. Increase limits only if justified by stable workload profile
+4. Re-baseline BT/metric growth after release

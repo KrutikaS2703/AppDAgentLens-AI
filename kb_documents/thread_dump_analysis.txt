@@ -1,0 +1,108 @@
+# category: thread-guide
+# tags: thread dump, deadlock, blocked, runnable, waiting, timed_waiting, hot stack, stuck thread, contention, monitor, lock, executor
+
+AppDynamics – Thread Dump Analysis Guide
+
+THREAD STATES (JVM)
+- RUNNABLE: Thread is executing or waiting for CPU. High RUNNABLE count → CPU pressure or infinite loop.
+- BLOCKED: Thread is waiting to acquire a monitor lock held by another thread. Indicates lock contention.
+- WAITING: Thread is indefinitely waiting (Object.wait(), LockSupport.park(), Thread.join()). Normal for idle threads.
+- TIMED_WAITING: Thread is waiting with a timeout (Thread.sleep(), Object.wait(timeout)). Normal for pools.
+- TERMINATED: Thread has finished. Should not appear in a live thread dump.
+
+DEADLOCK DETECTION
+Deadlock: Thread A holds Lock X and waits for Lock Y; Thread B holds Lock Y and waits for Lock X.
+In a thread dump, look for:
+  Found one Java-level deadlock:
+  "Thread-A" waiting to lock <0x...> (a java.lang.Object) held by "Thread-B"
+  "Thread-B" waiting to lock <0x...> (a java.lang.Object) held by "Thread-A"
+Causes:
+  - Nested synchronized blocks acquired in different orders
+  - Database connection + application lock acquired in different sequences
+  - ReentrantLock not released in finally block
+Remediation:
+  - Establish consistent lock acquisition ordering across all threads
+  - Use tryLock() with timeout instead of blocking lock()
+  - Prefer higher-level concurrency utilities (java.util.concurrent) over synchronized
+
+HIGH BLOCKED THREAD COUNT
+Symptom: Many threads in BLOCKED state waiting for the same lock.
+Log pattern: "waiting to lock <monitor>" or "locked <monitor>"
+Causes:
+  - Single-threaded bottleneck (synchronized method called from many threads)
+  - Database connection pool exhaustion (all threads waiting for a connection)
+  - Cache or session store contention
+  - Logging framework synchronization (log4j 1.x is known for this)
+Remediation:
+  - Reduce lock scope (lock only the critical section)
+  - Use concurrent data structures (ConcurrentHashMap, CopyOnWriteArrayList)
+  - Increase DB connection pool size
+  - Switch to async logging (log4j2, logback with async appender)
+
+HOT STACKS (REPEATED STACK TRACES)
+A hot stack is the same call stack appearing in many threads simultaneously.
+Indicates: a common bottleneck, CPU-intensive loop, or blocked system call.
+Example: 64 threads all stuck at:
+  sun.misc.Unsafe.park(Native Method)
+  java.util.concurrent.locks.LockSupport.park(LockSupport.java)
+  → These threads are parked waiting for work (normal for thread pool idle threads)
+Red flag hot stacks:
+  - Native I/O calls (read, write, accept) — network or disk bottleneck
+  - JDBC calls — slow database queries
+  - HTTP client calls — downstream service slowness
+  - GC-related calls — JVM under memory pressure
+
+STUCK THREAD INDICATORS
+A thread is likely stuck if:
+  - RUNNABLE but in a native/system call for extended duration
+  - BLOCKED on a lock that is never released
+  - In a tight loop with no I/O or sleep
+Common stuck patterns:
+  - java.net.SocketInputStream.read() — TCP socket not returning data (no timeout set)
+  - java.io.FileInputStream.read() — blocking file read on slow NFS/SAN
+  - com.mysql.jdbc.PreparedStatement.execute() — long-running DB query
+  - java.lang.Thread.sleep() — intentional but may indicate misused delay logic
+
+THREAD POOL EXHAUSTION
+Symptom: All threads in executor pool are BLOCKED or WAITING, new requests queued or rejected.
+Look for: Many threads with same pool name (e.g., http-nio-8080-exec-*, pool-1-thread-*)
+Diagnosis:
+  - Count threads per pool name
+  - Check what they are doing (BLOCKED waiting on what lock/resource?)
+Remediation:
+  - Increase thread pool size (temporary; find root cause first)
+  - Identify and fix the bottleneck the pool threads are waiting on
+  - Add timeouts to downstream calls (HTTP client, JDBC, etc.)
+
+GC-RELATED THREAD ISSUES
+During GC pause (especially Full GC / Stop-The-World), all application threads are suspended.
+Thread dump taken during GC will show all threads as RUNNABLE or WAITING but not progressing.
+Indicators:
+  - VM Thread in GC mode in thread dump
+  - Multiple "GC task thread" entries
+  - Application threads resume after GC completes
+Fix: Tune GC (G1GC, ZGC), increase heap, reduce object allocation rate.
+
+APPDYNAMICS THREAD MONITORING
+AppDynamics captures thread activity per BT in Transaction Snapshots (call graphs).
+Thread dump tab in Transaction Snapshot shows threads at the moment of a slow/error request.
+Manual thread dump: JVM Tools > Thread Dump in Controller UI (for connected agents).
+Automated: Configure AppDynamics to capture thread dumps on slow BTs:
+  Controller UI > App > Configuration > Transaction Snapshots > Thread Dump Settings
+
+READING A THREAD DUMP ENTRY
+Example:
+  "http-nio-8080-exec-1" #42 daemon prio=5 os_prio=0 tid=0x... nid=0x... waiting on condition [0x...]
+     java.lang.Thread.State: WAITING (parking)
+      at sun.misc.Unsafe.park(Native Method)
+      - parking to wait for <0x...> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+      at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+      at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(...)
+
+Fields:
+  - Thread name: "http-nio-8080-exec-1"
+  - Thread ID: #42
+  - daemon: background daemon thread
+  - State: WAITING
+  - "parking to wait for": the lock/object it is waiting on
+  - Stack trace: call chain from bottom (oldest) to top (most recent call)
