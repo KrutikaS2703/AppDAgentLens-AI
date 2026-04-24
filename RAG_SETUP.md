@@ -29,25 +29,19 @@ LLM provides intelligent contextual answer
 pip install sentence-transformers
 ```
 
-### LLM Provider (Amazon Bedrock -> Groq Fallback)
+### LLM Provider (Groq)
 
-The response generation layer uses Amazon Bedrock as primary provider and Groq as fallback.
+The response generation layer uses Groq.
 
 Set the following environment variables before running the app:
 
 ```bash
-export ENABLE_BEDROCK="true"
-export BEDROCK_REGION="ap-south-1"
-export BEDROCK_MODEL="apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
-
 export ENABLE_GROQ="true"
 export GROQ_API_KEY="your_groq_api_key"
 export GROQ_MODEL="llama-3.3-70b-versatile"
 ```
 
-- Bedrock uses IAM credentials, not a dedicated API token.
-- In this account/region, Anthropic must be invoked via inference profile IDs.
-- Groq is invoked only if Bedrock fails.
+- Set a valid `GROQ_API_KEY` before starting the app.
 
 ### What it does:
 - **sentence-transformers**: Provides embeddings for semantic similarity search
@@ -136,7 +130,7 @@ If `sentence-transformers` is not installed:
 
 - First use: ~2-3 seconds (model download + KB initialization + embedding computation)
 - Subsequent uses: <1 second (KB cached, embeddings precomputed)
-- LLM query time depends on model size and network latency to Bedrock/Groq endpoints
+- LLM query time depends on model size and network latency to Groq endpoints
 
 ## Customization
 

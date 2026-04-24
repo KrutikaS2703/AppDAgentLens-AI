@@ -10,8 +10,6 @@ warnings.filterwarnings(
 )
 
 import requests
-import boto3
-from botocore.exceptions import BotoCoreError, ClientError
 
 try:
     from dotenv import load_dotenv
@@ -19,7 +17,7 @@ try:
 except ImportError:
     pass  # python-dotenv not installed; rely on shell env vars
 
-# Bedrock + Groq providers
+# Groq provider
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -56,49 +54,6 @@ def _provider_enabled(
         return True
 
     return default_when_unset
-
-
-def _ask_bedrock(prompt: str, timeout_override: Optional[int] = None) -> Tuple[Optional[str], Optional[str]]:
-    model = os.getenv("BEDROCK_MODEL", "apac.anthropic.claude-3-5-sonnet-20241022-v2:0").strip()
-    region = os.getenv("BEDROCK_REGION", "ap-south-1").strip()
-    max_tokens = _safe_int("BEDROCK_MAX_TOKENS", 700)
-
-    try:
-        client = boto3.client("bedrock-runtime", region_name=region)
-        payload = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": max_tokens,
-            "temperature": 0.0,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = client.invoke_model(
-            modelId=model,
-            body=json.dumps(payload),
-            contentType="application/json",
-            accept="application/json",
-        )
-        body = json.loads(response["body"].read())
-        content = body.get("content") or []
-        if content and isinstance(content, list):
-            text = str(content[0].get("text", "")).strip()
-            if text:
-                return text, None
-
-        return None, "empty response from Bedrock"
-
-    except ClientError as e:
-        code = e.response.get("Error", {}).get("Code", "Unknown")
-        return None, f"Bedrock error ({code}): {e}"
-    except BotoCoreError as e:
-        return None, f"Bedrock client error: {e}"
-    except Exception as e:
-        return None, f"Bedrock error: {e}"
 
 
 def _ask_groq(prompt: str, timeout_override: Optional[int] = None) -> Tuple[Optional[str], Optional[str]]:
@@ -163,20 +118,14 @@ def _ask_groq(prompt: str, timeout_override: Optional[int] = None) -> Tuple[Opti
 
 def ask_llm_with_model(prompt: str) -> Tuple[str, str]:
     """
-    Multi-provider LLM call chain with model tracking:
-    1) Amazon Bedrock
-    2) Groq
+    LLM call with model tracking via Groq.
 
-    Returns tuple of (response, model_name); otherwise (AI-unavailable summary, error message).
+    Returns tuple of (response, model_name); otherwise (AI-unavailable summary, "Unknown").
     """
     errors = []
     total_budget = max(_safe_int("LLM_TOTAL_TIMEOUT_SECONDS", 20), 1)
     start = time.monotonic()
 
-    has_bedrock_config = bool(
-        os.getenv("BEDROCK_REGION", "").strip()
-        or os.getenv("BEDROCK_MODEL", "").strip()
-    )
     has_groq_key = bool(os.getenv("GROQ_API_KEY", "").strip())
 
     def remaining_seconds() -> int:
@@ -184,12 +133,6 @@ def ask_llm_with_model(prompt: str) -> Tuple[str, str]:
         return max(int(total_budget - elapsed), 0)
 
     providers = [
-        (
-            "Bedrock",
-            _ask_bedrock,
-            _provider_enabled("ENABLE_BEDROCK", True, has_bedrock_config),
-            _safe_int("BEDROCK_TIMEOUT_SECONDS", 12),
-        ),
         (
             "Groq",
             _ask_groq,
@@ -213,7 +156,6 @@ def ask_llm_with_model(prompt: str) -> Tuple[str, str]:
         if response:
             model_name = os.getenv(
                 f"{provider_name.upper()}_MODEL",
-                "apac.anthropic.claude-3-5-sonnet-20241022-v2:0" if provider_name == "Bedrock" else
                 "llama-3.3-70b-versatile"
             ).strip()
             return response, f"{provider_name} ({model_name})"
@@ -226,11 +168,9 @@ def ask_llm_with_model(prompt: str) -> Tuple[str, str]:
 
 def ask_llm(prompt: str) -> str:
     """
-    Multi-provider LLM call chain:
-    1) Amazon Bedrock
-    2) Groq
+    LLM call via Groq.
 
-    Returns first successful response; otherwise returns AI-unavailable summary.
+    Returns successful response; otherwise returns AI-unavailable summary.
     """
     response, _ = ask_llm_with_model(prompt)
     return response
