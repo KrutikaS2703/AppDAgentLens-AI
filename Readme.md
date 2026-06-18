@@ -35,7 +35,7 @@ AgentLens AI was created to simplify and automate this process using AI-driven d
 
 ### AI-Powered Analysis
 
-* Uses local LLMs via Ollama
+* Uses local LLMs via Groq
 * Generates human-readable troubleshooting insights
 * Provides potential root causes and recommendations
 
@@ -59,8 +59,8 @@ Automatically identifies:
 
 ### Privacy Friendly
 
-* Uses locally hosted LLMs through Ollama
 * No log data sent to external AI services
+* Data is preserved only for a session and then deleted
 
 ---
 
@@ -70,7 +70,7 @@ Automatically identifies:
 | -------------- | ----------------------------- |
 | Frontend       | Streamlit                     |
 | Backend        | Python                        |
-| AI Engine      | Ollama                        |
+| AI Engine      | Groq, RAG                     |
 | Log Processing | Python Regex & Parsing Engine |
 | Visualization  | Streamlit Components          |
 | Deployment     | AWS                           |
