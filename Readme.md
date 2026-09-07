@@ -181,24 +181,13 @@ Cisco Splunk AppDynamics
 
 Passionate about Observability, AI Automation, Java Diagnostics, and Developer Productivity.
 
-<img width="1728" height="969" alt="Screenshot 2026-06-18 at 11 49 41 AM" src="https://github.com/user-attachments/assets/9f1206df-7ac2-4ff4-8929-440b115007ba" />
-
-<img width="1727" height="958" alt="Screenshot 2026-06-18 at 11 50 05 AM" src="https://github.com/user-attachments/assets/6490aa73-dde6-4bb6-bdc9-6fcf4b57ca5a" />
-
-<img width="1727" height="962" alt="Screenshot 2026-06-18 at 11 50 50 AM" src="https://github.com/user-attachments/assets/cd028fe3-2510-4f83-82f7-7d5ec29cd52c" />
-
-<img width="1727" height="965" alt="Screenshot 2026-06-18 at 11 51 41 AM" src="https://github.com/user-attachments/assets/297e34db-b416-4a59-b835-1395e5b3e1ac" />
-
-<img width="1386" height="924" alt="Screenshot 2026-06-18 at 11 51 24 AM" src="https://github.com/user-attachments/assets/69bf2512-8ae3-4b8f-ae86-832d71c7c96c" />
-
-<img width="1728" height="969" alt="Screenshot 2026-06-18 at 11 52 30 AM" src="https://github.com/user-attachments/assets/8ef283b8-7c94-4ffd-b7d1-c083753f73ff" />
-
-<img width="1728" height="963" alt="Screenshot 2026-06-18 at 11 53 15 AM" src="https://github.com/user-attachments/assets/0f7240e6-3ba9-4574-bd8b-1fa535296b45" />
-
-<img width="1726" height="967" alt="Screenshot 2026-06-18 at 11 55 02 AM" src="https://github.com/user-attachments/assets/6a6afc37-50dc-4369-a72c-d4c3f282e0f7" />
-
-<img width="1726" height="968" alt="Screenshot 2026-06-18 at 11 55 40 AM" src="https://github.com/user-attachments/assets/96900a60-2de7-4093-97e6-a33400c163fb" />
-
-
-
+<img width="1728" height="969" alt="sc1" src="https://github.com/user-attachments/assets/6c8a4072-60f2-4e42-83ec-2ec2e18718ab" />
+<img width="1727" height="958" alt="sc2" src="https://github.com/user-attachments/assets/73401821-6526-4f62-9611-c846a93974a1" />
+<img width="1727" height="962" alt="sc3" src="https://github.com/user-attachments/assets/1a0c95f9-1a02-42c4-bf9b-55024acbe88c" />
+<img width="1727" height="965" alt="sc4" src="https://github.com/user-attachments/assets/e4e55b6a-6fdb-4c8a-abe2-20de6130193c" />
+<img width="1386" height="924" alt="sc5" src="https://github.com/user-attachments/assets/963b933d-38eb-4e6f-8c35-9cc454b12522" />
+<img width="1728" height="969" alt="sc6" src="https://github.com/user-attachments/assets/0194469c-67bd-476f-9e18-f2a32c927773" />
+<img width="1728" height="963" alt="sc7" src="https://github.com/user-attachments/assets/499472a4-ebe3-4e0c-be68-db457b4380b9" />
+<img width="1726" height="967" alt="sc8" src="https://github.com/user-attachments/assets/88522884-03cd-4d50-916e-bef13af3d775" />
+<img width="1726" height="968" alt="sc9" src="https://github.com/user-attachments/assets/74ea1613-d6e7-491a-9a4b-a9bb85239eb2" />
 
